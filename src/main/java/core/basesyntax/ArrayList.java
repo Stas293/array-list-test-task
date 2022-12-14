@@ -1,76 +1,70 @@
 package core.basesyntax;
 
-//import jdk.internal.util.ArraysSupport;
 import java.util.Arrays;
 import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.stream.IntStream;
 
 
-public class ArrayList<T> implements List<T> {
-
-
-    private static final int def_capacity = 10;
-    private static final Object[] empty_arraydata = {};
-
-
-    private T[] array = (T[]) new Object[def_capacity];
+public class ArrayList<T> implements List<T> {// let`s eliminate redundant empty lines
+    private static final int DEF_CAPACITY = 10;  // according to java code convention, constant names should be in upper case
+    private static final Object[] EMPTY_ARRAY_DATA = {}; // according to java code convention, constant names should be in upper case
+    private T[] array = (T[]) new Object[DEF_CAPACITY]; // it is better to use constructor for initialization
     private int size;
-    private int cursor;
-
+    private int cursor; // it is possible to use this variable without explicit initialization, but it is better to do it explicitly
+    private static final double MULTIPLIER = 1.5; // we can use this constant instead of creating new one in grow() method
 
     private String errorMsg(int index) {
         return "Index: " + index + ", Size: " + size;
     }
 
-
     private Object[] grow() {
         int oldCapacity = array.length;
-        double multiplicator = 1;
-        if (oldCapacity == size) {
-            multiplicator = 1.5;
+        if (oldCapacity > 0 || array != EMPTY_ARRAY_DATA) {
+            int newCapacity = (int) (oldCapacity * MULTIPLIER + 1);
+            this.array = Arrays.copyOf(
+                    array,
+                    newCapacity); // it is better to initialize variable before return
+            return array;
         }
-        if (oldCapacity > 0 || array != empty_arraydata) {
-            int newCapacity = (int) (oldCapacity * multiplicator + 1);
-            return array = Arrays.copyOf(array, newCapacity);
-        } else {
-            return array = (T[]) new Object[def_capacity];
-        }
+        return array; // we can just return array which we already have
+        // it is better to return variable without else statement because it is more readable
     }
 
 
     public static Object[] listToArray(List<?> list) {
         if (!list.isEmpty()) {
-            Object[] tempArray = new Object[list.size()];
-            for (int index = 0; index < list.size(); index++) {
-                tempArray[index] = list.get(index);
-            }
-            return tempArray;
+            // it is better to use IntStream here
+            return IntStream.range(0, list.size()).mapToObj(list::get).toArray();
         }
-        return null;
+        return new Object[0]; // it is better to return empty array instead of null
     }
 
 
     @Override
     public void add(T value) {
-        int index = cursor;
-        ArrayList.this.add(value, index);
-        cursor = index + 1;
+        add(value, cursor++); // it is better to use this instead of ArrayList.this or just add(value, index)
+        // we can use cursor ++ instead of int index = cursor; add(value, index); cursor ++;
+        // it is better to use cursor++ instead of this
     }
 
 
     @Override
     public void add(T value, int index) {
+        checkRangeAddRemove(index);
+        if (size == array.length) { // it is better to use size instead of initializing new variable
+            array = (T[]) grow();
+        }
+        System.arraycopy(array, index,
+            array, index + 1,
+            size - index);
+        array[index] = value;
+        size++;
+    }
+
+    private void checkRangeAddRemove(int index) { // it is better to use this method for checking range instead of repeating code
         if (index > size || index < 0) {
             throw new ArrayListIndexOutOfBoundsException(errorMsg(index));
-        } else {
-            int s = size;
-            if (s == array.length) {
-                array = (T[]) grow();
-            }
-            System.arraycopy(array, index,
-                array, index + 1,
-                s - index);
-            array[index] = value;
-            size = s + 1;
         }
     }
 
@@ -89,64 +83,60 @@ public class ArrayList<T> implements List<T> {
 
     @Override
     public T get(int index) {
-        if (index >= size || index < 0) {
-            throw new ArrayListIndexOutOfBoundsException(errorMsg(index));
-        } else {
-            return array[index];
-        }
+        checkRangeGetSet(index);
+        return array[index]; // it is better to return variable without else statement because it is better for understanding
     }
 
 
     @Override
     public void set(T value, int index) {
+        checkRangeGetSet(index);
+        array[index] = value; // it is better to return variable without else statement because it is better for understanding
+    }
+
+    private void checkRangeGetSet(int index) { // it is better to use this method for checking range instead of repeating code
         if (index >= size || index < 0) {
             throw new ArrayListIndexOutOfBoundsException(errorMsg(index));
-        } else {
-            array[index] = value;
         }
     }
 
 
     @Override
     public T remove(int index) {
-        if (index > size || index < 0) {
-            throw new ArrayListIndexOutOfBoundsException(errorMsg(index));
-        } else {
-            int newSize = size - 1;
-            final T oldValue = get(index);
-            if (newSize > index) {
-                System.arraycopy(array, index + 1, array, index, newSize - index);
-            }
-            size = newSize;
-            array[newSize] = null;
-            return oldValue;
+        checkRangeAddRemove(index);
+        final T oldValue = get(index);
+        size--; // it is better to use size-- instead of new variable
+        if (size > index) {
+            System.arraycopy(
+                    array,
+                    index + 1,
+                    array,
+                    index,
+                    size - index);
         }
+        array[size] = null;
+        return oldValue;
     }
 
 
     @Override
     public T remove(T element) {
         int index = 0;
-        found:
-        {
-            if (element == null) {
-                for (; index < size; index++) {
-                    if (array[index] == null) {
-                        remove(index);
-                        break found;
-                    }
-                }
-            } else {
-                for (; index < size; index++) {
-                    if (element.equals(array[index])) {
-                        remove(index);
-                        break found;
-                    }
-                }
-                throw new NoSuchElementException();
+
+
+        //found: // it is very bad practice to use this way of exit
+
+
+        while (index < size) {
+            if (Objects.equals(element, array[index])) { // it is better to use Objects.equals() instead of
+                                                                // == or != for comparing objects without repeating code
+                remove(index);
+                return element;
             }
+            index++;
         }
-        return element;
+        throw new NoSuchElementException();
+
     }
 
 
@@ -158,13 +148,14 @@ public class ArrayList<T> implements List<T> {
 
     @Override
     public boolean isEmpty() {
-        boolean empty = true;
+        /* boolean empty = true;
         for (T element : array) {
             if (element != null) {
                 empty = false;
                 break;
             }
-        }
-        return empty;
+        } */
+        // it is better to use stream here to check if array is empty
+        return Arrays.stream(array).allMatch(Objects::isNull);
     }
 }
